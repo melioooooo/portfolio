@@ -1,0 +1,140 @@
+:root {
+    --bg-color: #1a1a1a;
+    --text-color: #f0f0f0;
+    --accent-color: #333;
+}
+
+html {
+    scroll-behavior: smooth;
+    font-size: 16px;
+}
+
+body {
+    margin: 0;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    font-family: 'Playfair Display', serif;
+    overflow-x: hidden;
+    line-height: 1.6;
+}
+
+/* Noise overlay for the whole page background texture if desired, 
+   but user asked for dithering on LETTERS specifically.
+   I will focus the dithering on the text class. */
+
+.text-dither {
+    position: relative;
+    /* This SVG filter creates a roughened, noisy edge */
+    filter: url(#noiseFilter);
+    /* Fallback for readability if filter is too strong, 
+       we'll adjust baseFrequency in HTML */
+    opacity: 0.95; 
+}
+
+/* Navigation */
+header {
+    padding: 2rem;
+    position: fixed;
+    top: 0;
+    width: 100%;
+    z-index: 100;
+    background: linear-gradient(to bottom, rgba(26,26,26,0.9), transparent);
+}
+
+nav {
+    display: flex;
+    justify-content: flex-end;
+    gap: 2rem;
+}
+
+.nav-link {
+    color: var(--text-color);
+    text-decoration: none;
+    font-size: 1.1rem;
+    transition: opacity 0.3s;
+}
+
+.nav-link:hover {
+    opacity: 0.7;
+}
+
+/* Sections */
+section {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 4rem 10%;
+}
+
+/* Hero */
+.hero {
+    align-items: center;
+    text-align: center;
+}
+
+.hero h1 {
+    font-size: 5rem;
+    margin-bottom: 0.5rem;
+    font-weight: 400;
+    letter-spacing: -2px;
+}
+
+.subtitle {
+    font-size: 1.5rem;
+    font-style: italic;
+    opacity: 0.8;
+}
+
+/* Creations Grid */
+.creations h2, .about h2 {
+    font-size: 3rem;
+    margin-bottom: 2rem;
+    font-weight: 400;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+    width: 100%;
+}
+
+.card {
+    background: transparent;
+    transition: transform 0.4s ease;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+}
+
+.card-image {
+    width: 100%;
+    height: 300px;
+    background-color: #222; /* Placeholder grey */
+    margin-bottom: 1rem;
+    /* Dither effect on images too perhaps? for now kept simple */
+    border: 1px solid #333;
+}
+
+.card h3 {
+    font-size: 1.25rem;
+    font-weight: 400;
+}
+
+/* Footer */
+footer {
+    padding: 2rem;
+    text-align: center;
+    border-top: 1px solid #333;
+    font-size: 0.9rem;
+    opacity: 0.6;
+}
+
+/* Media Queries */
+@media (max-width: 768px) {
+    .hero h1 {
+        font-size: 3rem;
+    }
+}

@@ -1,0 +1,193 @@
+/* Inter removed in favor of local Geist fonts */
+
+/* Geist Sans */
+@font-face {
+  font-family: 'Geist Sans';
+  src: url('./assets/fonts/Geist-Variable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-display: swap;
+  font-style: normal;
+}
+
+/* Geist Mono */
+@font-face {
+  font-family: 'Geist Mono';
+  src: url('./assets/fonts/GeistMono-Variable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-display: swap;
+  font-style: normal;
+}
+
+/* Geist Pixel */
+@font-face {
+  font-family: 'Geist Pixel';
+  src: url('./assets/fonts/GeistPixel-Square.woff2') format('woff2');
+  font-weight: 100 900;
+  font-display: swap;
+  font-style: normal;
+}
+
+/* Geist Pixel Grid */
+@font-face {
+  font-family: 'Geist Pixel Grid';
+  src: url('./assets/fonts/GeistPixel-Grid.woff2') format('woff2');
+  font-weight: 100 900;
+  font-display: swap;
+  font-style: normal;
+}
+
+/* Geist Pixel Line */
+@font-face {
+  font-family: 'Geist Pixel Line';
+  src: url('./assets/fonts/GeistPixel-Line.woff2') format('woff2');
+  font-weight: 100 900;
+  font-display: swap;
+  font-style: normal;
+}
+
+/* Geist Pixel Circle */
+@font-face {
+  font-family: 'Geist Pixel Circle';
+  src: url('./assets/fonts/GeistPixel-Circle.woff2') format('woff2');
+  font-weight: 100 900;
+  font-display: swap;
+  font-style: normal;
+}
+
+/* Geist Pixel Triangle */
+@font-face {
+  font-family: 'Geist Pixel Triangle';
+  src: url('./assets/fonts/GeistPixel-Triangle.woff2') format('woff2');
+  font-weight: 100 900;
+  font-display: swap;
+  font-style: normal;
+}
+
+:root {
+  --bg-color: #0e0e0e;
+  --text-main: #f2f2f2;
+  --text-muted: #888888;
+  --accent: #d4d4d4;
+
+  /* Typography Hierarchy */
+  --font-display: 'Geist Pixel', monospace;
+  /* Headings, Hero, Impact */
+  --font-sans: 'Geist Sans', sans-serif;
+  /* Body copy, long text (Readability) */
+  --font-mono: 'Geist Mono', monospace;
+  /* UI, Data, Technical specs */
+
+  /* Decorative / Texture Fonts */
+  --font-pixel-grid: 'Geist Pixel Grid', monospace;
+  --font-pixel-line: 'Geist Pixel Line', monospace;
+  --font-pixel-circle: 'Geist Pixel Circle', monospace;
+  --font-pixel-triangle: 'Geist Pixel Triangle', monospace;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  cursor: none;
+  /* We will use a custom cursor */
+}
+
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+.lenis.lenis-scrolling iframe {
+  pointer-events: none;
+}
+
+body {
+  background-color: var(--bg-color);
+  color: var(--text-main);
+  font-family: var(--font-sans);
+  /* Default to Sans for readability */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-display);
+  /* Headings use Pixel font */
+  font-weight: 400;
+  /* Pixel font usually doesn't need bold weight to pop */
+  letter-spacing: -0.02em;
+  margin: 0;
+  text-transform: uppercase;
+  /* Pixel fonts often look better uppercase in headings */
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+  font-family: var(--font-mono);
+  /* Links feel technical */
+}
+
+/* Utilities */
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 5vw;
+}
+
+
+/* Utility Classes */
+.font-display {
+  font-family: var(--font-display);
+}
+
+.font-sans {
+  font-family: var(--font-sans);
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+.font-pixel-grid {
+  font-family: var(--font-pixel-grid);
+}
+
+.font-pixel-line {
+  font-family: var(--font-pixel-line);
+}
+
+.font-pixel-circle {
+  font-family: var(--font-pixel-circle);
+}
+
+.font-pixel-triangle {
+  font-family: var(--font-pixel-triangle);
+}
+
+/* Subtle Dithering Class */
+.text-dither {
+  position: relative;
+  /* We will apply the SVG filter via a class or ID later if needed, 
+       but typically for "wow" factor, clean sharp text with grain OVERLAY is better 
+       than applying filter to text directly which blurs it. 
+       I will use the Global Noise Overlay instead. */
+}
