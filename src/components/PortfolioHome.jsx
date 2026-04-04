@@ -1,11 +1,11 @@
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 
 import Hero from './Hero';
-import Experience from './Experience';
-import Creations from './Creations';
 import About from './About';
+import Creations from './Creations';
+import Experience from './Experience';
+import Contact from './Contact';
 import Navbar from './Navbar';
 import Footer from './Footer';
 
@@ -17,12 +17,6 @@ const pageVariants = {
 };
 
 export default function PortfolioHome() {
-    const navigate = useNavigate();
-
-    useEffect(() => {
-        // Lenis is now handled globally in App.jsx
-    }, []);
-
     return (
         <motion.div
             className="portfolio-home"
@@ -35,10 +29,10 @@ export default function PortfolioHome() {
             <Navbar />
             <main>
                 <Hero />
-                <Experience />
-                <Creations />
                 <About />
-
+                <Creations />
+                <Experience />
+                <Contact />
                 <Footer />
             </main>
         </motion.div>

@@ -60,6 +60,7 @@ export const translations = {
             skills_tech: "Technical Skills",
             skills_lang: "Languages",
             skills_soft: "Soft Skills",
+            tech_list: ["Photography & Videography", "Digital Creation", "IT Proficiency"],
             soft_list: ["Communication", "Adaptability", "Autonomy"]
         },
         creations: {
@@ -75,6 +76,12 @@ export const translations = {
             download: "Download PDF",
             driver_license: "Driver's Licence",
             age: "21 years old"
+        },
+        contact: {
+            title: "Get in Touch",
+            subtitle: "Have a project in mind? Let's talk.",
+            email_label: "Email",
+            socials_label: "Find me on"
         }
     },
     fr: {
@@ -138,6 +145,7 @@ export const translations = {
             skills_tech: "Compétences Techniques",
             skills_lang: "Langues",
             skills_soft: "Savoir-être",
+            tech_list: ["Photographie & Vidéo", "Création Digitale", "Maîtrise IT"],
             soft_list: ["Communication", "Adaptabilité", "Autonomie"]
         },
         creations: {
@@ -153,6 +161,12 @@ export const translations = {
             download: "Télécharger PDF",
             driver_license: "Permis B",
             age: "21 ans"
+        },
+        contact: {
+            title: "Me Contacter",
+            subtitle: "Un projet en tête ? Parlons-en.",
+            email_label: "Email",
+            socials_label: "Retrouvez-moi sur"
         }
     }
 };
