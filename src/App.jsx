@@ -9,6 +9,7 @@ import ScrollProgress from './components/ScrollProgress';
 import PortfolioHome from './components/PortfolioHome';
 import Resume from './components/Resume';
 import ExternalApp from './apps/external-app/App';
+import SpotifyWidget from './components/SpotifyWidget';
 
 import { LanguageProvider } from './context/LanguageContext';
 
@@ -32,6 +33,7 @@ function AppContent() {
       <NoiseOverlay />
       <ScrollProgress />
       <Cursor />
+      <SpotifyWidget />
       <AnimatedRoutes />
     </div>
   );
@@ -40,12 +42,12 @@ function AppContent() {
 function App() {
   useEffect(() => {
     const lenis = new Lenis({
-      duration: 1.2,
+      duration: 0.7, // Lower duration makes it feel lighter and snappier
       easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
       direction: 'vertical',
       gestureDirection: 'vertical',
       smooth: true,
-      mouseMultiplier: 1,
+      mouseMultiplier: 1.2, // Slightly increase multiplier for lighter scroll feel
       smoothTouch: false,
       touchMultiplier: 2,
     });

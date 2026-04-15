@@ -1,17 +1,23 @@
-import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import { useEffect } from 'react';
+import { motion, useMotionValue, useSpring } from 'framer-motion';
 
 export default function Cursor() {
-    const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+    const cursorX = useMotionValue(-100);
+    const cursorY = useMotionValue(-100);
+
+    const springConfig = { damping: 28, stiffness: 500, mass: 0.5 };
+    const cursorXSpring = useSpring(cursorX, springConfig);
+    const cursorYSpring = useSpring(cursorY, springConfig);
 
     useEffect(() => {
-        const mouseMove = (e) => {
-            setMousePosition({ x: e.clientX, y: e.clientY });
+        const moveCursor = (e) => {
+            cursorX.set(e.clientX - 16);
+            cursorY.set(e.clientY - 16);
         };
 
-        window.addEventListener('mousemove', mouseMove);
-        return () => window.removeEventListener('mousemove', mouseMove);
-    }, []);
+        window.addEventListener('mousemove', moveCursor);
+        return () => window.removeEventListener('mousemove', moveCursor);
+    }, [cursorX, cursorY]);
 
     return (
         <motion.div
@@ -26,18 +32,8 @@ export default function Cursor() {
                 mixBlendMode: 'difference',
                 pointerEvents: 'none',
                 zIndex: 10000,
-                x: mousePosition.x - 16,
-                y: mousePosition.y - 16,
-            }}
-            transition={{
-                type: 'spring',
-                stiffness: 500,
-                damping: 28,
-                mass: 0.5
-            }}
-            animate={{
-                x: mousePosition.x - 16,
-                y: mousePosition.y - 16,
+                x: cursorXSpring,
+                y: cursorYSpring,
             }}
         />
     );
