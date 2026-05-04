@@ -29,9 +29,9 @@ export default function PortfolioHome() {
             <Navbar />
             <main>
                 <Hero />
-                <About />
-                <Creations />
                 <Experience />
+                <Creations />
+                <About />
                 <Contact />
                 <Footer />
             </main>
