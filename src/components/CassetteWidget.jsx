@@ -10,6 +10,7 @@ const DISCORD_ID = profile.discord.split('/').pop();
 const LANYARD = `https://api.lanyard.rest/v1/users/${DISCORD_ID}`;
 const POLL_MS = 6000;
 const PX_W = 1423, PX_H = 882, W = 10, H = W * PX_H / PX_W, D = W * 12 / 100.4, R = 0.32;
+const LABEL = [70, 92, 1284, 540], WINDOW = [262, 262, 888, 328]; // px in the 1423x882 label art: paper, tape window
 const IDLE = ['#ff5a1f', '#ffa23a', '#ff3d7f'];
 
 function buildScene(canvas, label) {
@@ -52,31 +53,27 @@ function buildScene(canvas, label) {
     const tex = new THREE.CanvasTexture(cv);
     tex.colorSpace = THREE.SRGBColorSpace;
     tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    const tmp = document.createElement('canvas'); tmp.width = PX_W; tmp.height = PX_H;
     const base = new Image();
     let info = null;
-    const fit = (text, max, px, weight) => { // shrink to fit, then ellipsize
-        g.font = `${weight} ${px}px "Geist Pixel", monospace`;
-        while (g.measureText(text).width > max && px > 34) g.font = `${weight} ${px -= 4}px "Geist Pixel", monospace`;
-        while (g.measureText(text).width > max && text.length > 3) text = text.slice(0, -2).trimEnd() + '…';
-        return text;
-    };
     const paint = (next = info) => {
         info = next;
         g.globalCompositeOperation = 'source-over';
         g.clearRect(0, 0, PX_W, PX_H); g.drawImage(base, 0, 0, PX_W, PX_H);
-        if (info) {
-            g.globalCompositeOperation = 'source-atop'; // never paint outside the cassette shape
-            const c = info.color ? info.color.clone().multiplyScalar(0.45) : new THREE.Color('#2a1020');
-            g.fillStyle = `#${c.getHexString(THREE.SRGBColorSpace)}`;
-            g.beginPath(); g.roundRect(150, 98, 795, 148, 40); g.fill();
-            g.fillStyle = '#fff'; g.textBaseline = 'alphabetic';
-            g.fillText(fit(info.title, 730, 84, 400), 185, 178);
-            g.globalAlpha = 0.75; g.fillText(fit(info.artist, 730, 44, 400), 185, 226); g.globalAlpha = 1;
-            if (info.img) {
-                g.save(); g.beginPath(); g.roundRect(1128, 100, 212, 212, 24); g.clip();
-                g.drawImage(info.img, 1128, 100, 212, 212); g.restore();
-                g.lineWidth = 6; g.strokeStyle = '#fff'; g.beginPath(); g.roundRect(1128, 100, 212, 212, 24); g.stroke();
+        if (info?.img) {
+            // Whole cassette = the cover. Shell: original plastic recolored to the cover's hue (alpha kept).
+            // Label paper: the cover itself, cover-fit, leaving the tape window (reels, hubs) untouched.
+            const t = tmp.getContext('2d');
+            t.globalCompositeOperation = 'source-over'; t.clearRect(0, 0, PX_W, PX_H); t.drawImage(base, 0, 0, PX_W, PX_H);
+            if (info.color) {
+                t.globalCompositeOperation = 'color'; t.fillStyle = `#${info.color.getHexString(THREE.SRGBColorSpace)}`; t.fillRect(0, 0, PX_W, PX_H);
+                t.globalCompositeOperation = 'destination-in'; t.drawImage(base, 0, 0, PX_W, PX_H);
             }
+            g.clearRect(0, 0, PX_W, PX_H); g.drawImage(tmp, 0, 0);
+            const [lx, ly, lw, lh] = LABEL, im = info.img, k = Math.max(lw / im.width, lh / im.height);
+            g.save(); g.beginPath(); g.roundRect(lx, ly, lw, lh, 36); g.roundRect(...WINDOW, 120); g.clip('evenodd');
+            g.drawImage(im, lx + (lw - im.width * k) / 2, ly + (lh - im.height * k) / 2, im.width * k, im.height * k);
+            g.restore();
         }
         tex.needsUpdate = true;
     };
@@ -276,7 +273,7 @@ export default function CassetteWidget() {
             const pal = L.palette || target;
             const k = Math.min(1, dt * 1.5);
             U.uC1.value.lerp(pal[0], k); U.uC2.value.lerp(pal[1] || pal[0], k); U.uC3.value.lerp(pal[2] || pal[0], k);
-            S.sideMat.color.lerp(L.palette ? side.clone().lerp(pal[0], 0.45) : side, k);
+            S.sideMat.color.lerp(L.palette ? side.clone().lerp(pal[0], 0.85) : side, k);
             S.renderer.render(S.scene, S.camera);
         };
         frame();
