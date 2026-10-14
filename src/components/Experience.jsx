@@ -8,14 +8,14 @@ function Entry({ title, org, period, text }) {
         <div className="entry">
             <h4 className="hot-on-hover">{title}</h4>
             <div className="entry__meta"><span>{org}</span><span>{period}</span></div>
-            <p>{text}</p>
+            {text && <p>{text}</p>}
         </div>
     );
 }
 
 export default function Experience() {
     const { t, language } = useLanguage();
-    const { experience, education } = getCv(t, language);
+    const { experience, education, events, international } = getCv(t, language);
     const main = experience.filter(e => e.featured);
     const other = experience.filter(e => !e.featured);
 
@@ -41,11 +41,19 @@ export default function Experience() {
                                 {other.map(e => <Entry key={e.id} title={e.role} org={e.company} period={e.period} text={e.description} />)}
                             </div>
                         </details>
+                        <h3 className="col-title">{t.journey.events}</h3>
+                        <div className="slide-list">
+                            {events.map(e => <Entry key={e.name} title={e.name} org={e.roles.join(' · ')} />)}
+                        </div>
                     </div>
                     <div>
                         <h3 className="col-title">{t.experience.title_education}</h3>
                         <div className="slide-list">
                             {education.map(e => <Entry key={e.id} title={e.degree} org={e.school} period={e.period} text={e.details} />)}
+                        </div>
+                        <h3 className="col-title">{t.journey.international}</h3>
+                        <div className="slide-list">
+                            {international.map(e => <Entry key={e.type} title={e.type} org={e.place} period={e.year} />)}
                         </div>
                     </div>
                 </motion.div>

@@ -89,6 +89,8 @@ export const translations = {
         },
         journey: {
             other_jobs: "Other jobs (student & seasonal)",
+            events: "Events",
+            international: "International",
             download: "Download the CV (PDF)",
             full: "Printable version"
         },
@@ -200,6 +202,8 @@ export const translations = {
         },
         journey: {
             other_jobs: "Autres jobs (étudiants & saisonniers)",
+            events: "Événements",
+            international: "International",
             download: "Télécharger le CV (PDF)",
             full: "Version imprimable"
         },

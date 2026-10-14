@@ -34,8 +34,24 @@ const educationRows = [
     { key: 'lycee', school: 'Lycée Louis Aragon', fr: '2019 – 2022', en: '2019 – 2022' },
 ];
 
+// Dated facts from the AEA events and exchanges (no figures, no claims beyond the role).
+const eventRows = [
+    { name: 'LAN Rocket League AEA 2026', roles: { fr: ['Event planning', 'Régie', 'Communication'], en: ['Event planning', 'Stage management', 'Communication'] } },
+    { name: 'LAN Black Ops 7 AEA 2026', roles: { fr: ['Event planning', 'Régie'], en: ['Event planning', 'Stage management'] } },
+    { name: { fr: 'LANs Fortnite — éditions multiples', en: 'Fortnite LANs — multiple editions' }, roles: { fr: ['Event planning', 'Création de visuels', 'Communication'], en: ['Event planning', 'Visual creation', 'Communication'] } },
+];
+
+const internationalRows = [
+    { type: { fr: 'Échange Erasmus — 1 semestre', en: 'Erasmus exchange — 1 semester' }, place: { fr: 'Valence, Espagne', en: 'Valencia, Spain' }, year: '2024' },
+    { type: { fr: 'Échange linguistique', en: 'Linguistic exchange' }, place: { fr: 'Asturies, Espagne', en: 'Asturias, Spain' }, year: '2019' },
+];
+
+const pick = (v, language) => (typeof v === 'string' ? v : v[language]);
+
 export function getCv(t, language) {
     return {
+        events: eventRows.map((r) => ({ name: pick(r.name, language), roles: r.roles[language] })),
+        international: internationalRows.map((r) => ({ type: r.type[language], place: r.place[language], year: r.year })),
         experience: experienceRows.map((r) => ({
             id: r.key,
             company: r.company,
