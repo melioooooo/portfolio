@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import Lenis from 'lenis';
 import { AnimatePresence } from 'framer-motion';
@@ -8,9 +8,8 @@ import Cursor from './components/Cursor';
 import ScrollProgress from './components/ScrollProgress';
 import PortfolioHome from './components/PortfolioHome';
 import Resume from './components/Resume';
-import ExternalApp from './apps/external-app/App';
 
-import { LanguageProvider } from './context/LanguageContext';
+import { LanguageProvider, useLanguage } from './context/LanguageContext';
 
 function AnimatedRoutes() {
   const location = useLocation();
@@ -20,15 +19,20 @@ function AnimatedRoutes() {
       <Routes location={location} key={location.pathname}>
         <Route path="/" element={<PortfolioHome />} />
         <Route path="/resume" element={<Resume />} />
-        <Route path="/preview-cexaea/*" element={<ExternalApp />} />
+        <Route path="*" element={<PortfolioHome />} />
       </Routes>
     </AnimatePresence>
   );
 }
 
 function AppContent() {
+  const { pathname, state } = useLocation();
+  const { t } = useLanguage();
+  useEffect(() => { if (!state?.scrollTo) window.scrollTo(0, 0); }, [pathname, state]);
+
   return (
     <div className="App">
+      <a className="skip-link" href="#main">{t.a11y.skip}</a>
       <NoiseOverlay />
       <ScrollProgress />
       <Cursor />
@@ -39,27 +43,14 @@ function AppContent() {
 
 function App() {
   useEffect(() => {
-    const lenis = new Lenis({
-      duration: 1.2,
-      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-      direction: 'vertical',
-      gestureDirection: 'vertical',
-      smooth: true,
-      mouseMultiplier: 1,
-      smoothTouch: false,
-      touchMultiplier: 2,
-    });
-
-    function raf(time) {
+    // Smooth scroll is decoration: skip it for people who ask for less motion
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const lenis = new Lenis({ duration: 1.1 });
+    let frame = requestAnimationFrame(function raf(time) {
       lenis.raf(time);
-      requestAnimationFrame(raf);
-    }
-
-    requestAnimationFrame(raf);
-
-    return () => {
-      lenis.destroy();
-    };
+      frame = requestAnimationFrame(raf);
+    });
+    return () => { cancelAnimationFrame(frame); lenis.destroy(); };
   }, []);
 
   return (

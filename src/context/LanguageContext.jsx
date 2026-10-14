@@ -1,18 +1,30 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+/* eslint-disable react-refresh/only-export-components */
+import { createContext, useState, useContext, useEffect } from 'react';
 import { translations } from '../data/translations';
 
 const LanguageContext = createContext();
 
-export const LanguageProvider = ({ children }) => {
-    const [language, setLanguage] = useState('fr'); // Default to French
+// ?lang=en wins (used to print the EN PDF), then the saved choice, then French.
+function initialLanguage() {
+    try {
+        const q = new URLSearchParams(window.location.search).get('lang');
+        if (q in translations) return q;
+        const saved = localStorage.getItem('lang');
+        if (saved in translations) return saved;
+    } catch { /* storage blocked: fall through */ }
+    return 'fr';
+}
 
+export const LanguageProvider = ({ children }) => {
+    const [language, setLanguage] = useState(initialLanguage);
     const t = translations[language];
 
     const toggleLanguage = () => {
-        setLanguage((prev) => (prev === 'fr' ? 'en' : 'fr'));
+        const next = language === 'fr' ? 'en' : 'fr';
+        setLanguage(next);
+        try { localStorage.setItem('lang', next); } catch { /* ignore */ }
     };
 
-    // Sync html lang attribute with current language
     useEffect(() => {
         document.documentElement.lang = language;
     }, [language]);

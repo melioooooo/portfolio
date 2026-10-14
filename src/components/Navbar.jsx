@@ -1,112 +1,41 @@
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useLanguage } from '../context/LanguageContext';
 import Logo from './Logo';
-import Magnetic from './Magnetic';
 
 export default function Navbar() {
     const { toggleLanguage, language, t } = useLanguage();
-    const location = useLocation();
-    const isHome = location.pathname === '/';
+    const { pathname } = useLocation();
+    const navigate = useNavigate();
+    const isHome = pathname === '/';
 
-    const handleScrollTo = (e, id) => {
-        if (isHome) {
-            e.preventDefault();
-            const el = document.getElementById(id);
-            if (el) el.scrollIntoView({ behavior: 'smooth' });
-        }
+    // Section links: scroll when already home, otherwise go home and let PortfolioHome scroll.
+    const goTo = (id) => (e) => {
+        e.preventDefault();
+        if (isHome) document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
+        else navigate('/', { state: { scrollTo: id } });
     };
 
     return (
         <motion.nav
+            className="nav no-print"
+            aria-label="Navigation"
             initial={{ y: -100 }}
             animate={{ y: 0 }}
             transition={{ duration: 0.8, ease: [0.6, 0.01, 0, 0.95] }}
-            style={{
-                position: 'fixed',
-                top: 0,
-                left: 0,
-                width: '100%',
-                padding: '1.5rem 5vw',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                zIndex: 100,
-                mixBlendMode: 'difference',
-                color: 'white',
-            }}
         >
-            <Magnetic>
-                <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '1rem', textDecoration: 'none', color: 'white' }}>
-                    <Logo size={40} />
-                </Link>
-            </Magnetic>
+            <Link to="/" aria-label={t.navbar.home} onClick={() => window.scrollTo(0, 0)}>
+                <Logo size={36} />
+            </Link>
 
-            <div style={{
-                display: 'flex',
-                gap: '1.5rem',
-                fontFamily: 'var(--font-sans)',
-                fontSize: '0.85rem',
-                alignItems: 'center',
-            }}>
-                <Magnetic>
-                    <Link
-                        to="/"
-                        onClick={(e) => handleScrollTo(e, 'creations')}
-                        style={{
-                            opacity: isHome ? 1 : 0.6,
-                            padding: '0.8rem',
-                            transition: 'opacity 0.3s',
-                        }}
-                    >
-                        {t.navbar.work}
-                    </Link>
-                </Magnetic>
-                <Magnetic>
-                    <Link
-                        to="/resume"
-                        style={{
-                            opacity: location.pathname === '/resume' ? 1 : 0.6,
-                            padding: '0.8rem',
-                            transition: 'opacity 0.3s',
-                        }}
-                    >
-                        {t.navbar.resume}
-                    </Link>
-                </Magnetic>
-                <Magnetic>
-                    <a
-                        href={isHome ? '#contact' : '/#contact'}
-                        onClick={(e) => handleScrollTo(e, 'contact')}
-                        style={{
-                            opacity: 0.6,
-                            padding: '0.8rem',
-                            transition: 'opacity 0.3s',
-                        }}
-                    >
-                        {t.navbar.contact}
-                    </a>
-                </Magnetic>
-
-                <Magnetic>
-                    <button
-                        onClick={toggleLanguage}
-                        style={{
-                            background: 'none',
-                            border: '1px solid rgba(255,255,255,0.2)',
-                            borderRadius: '20px',
-                            padding: '0.4rem 0.9rem',
-                            color: 'white',
-                            fontSize: '0.75rem',
-                            fontFamily: 'var(--font-mono)',
-                            marginLeft: '0.5rem',
-                            opacity: 0.7,
-                            transition: 'all 0.3s',
-                        }}
-                    >
-                        {language === 'en' ? 'FR' : 'EN'}
-                    </button>
-                </Magnetic>
+            <div className="nav__links">
+                <a href="/#creations" className="nav-link" onClick={goTo('creations')}>{t.navbar.work}</a>
+                <a href="/#experience" className="nav-link" onClick={goTo('experience')}>{t.navbar.journey}</a>
+                <Link to="/resume" className="nav-link" aria-current={pathname === '/resume' ? 'page' : undefined}>{t.navbar.resume}</Link>
+                <a href="/#contact" className="nav-link" onClick={goTo('contact')}>{t.navbar.contact}</a>
+                <button className="nav__lang" onClick={toggleLanguage} aria-label={t.a11y.language} lang={language === 'en' ? 'fr' : 'en'}>
+                    {language === 'en' ? 'FR' : 'EN'}
+                </button>
             </div>
         </motion.nav>
     );

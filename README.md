@@ -1,16 +1,29 @@
-# React + Vite
+# Portfolio / CV en ligne — Elio Baumann
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Vite + React. Site bilingue FR/EN, page `/resume` imprimable, PDF téléchargeables.
 
-Currently, two official plugins are available:
+```
+npm run dev       # développement
+npm run build     # production (dist/)
+npm run lint
+```
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Modifier le contenu
 
-## React Compiler
+| Quoi | Où |
+|---|---|
+| Email, liens, Instagram, chemins des PDF, expériences, formations, langues | `src/data/cv.js` |
+| Textes (FR + EN) | `src/data/translations.js` |
+| Projets (une ligne par projet) | `src/components/Creations.jsx` |
+| Couleur d'accent, tokens | `:root` dans `src/index.css` (`--hot`) |
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Régénérer les PDF
 
-## Expanding the ESLint configuration
+Le CV PDF est imprimé depuis `/resume` (styles `@media print`). Avec le site lancé (`npm run preview`) :
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```
+google-chrome --headless=new --no-pdf-header-footer --print-to-pdf=public/cv-elio-baumann-fr.pdf "http://localhost:4173/resume?lang=fr"
+google-chrome --headless=new --no-pdf-header-footer --print-to-pdf=public/cv-elio-baumann-en.pdf "http://localhost:4173/resume?lang=en"
+```
+
+Pour utiliser ton propre PDF, remplace simplement ces deux fichiers dans `public/`.

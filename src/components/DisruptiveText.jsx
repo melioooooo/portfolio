@@ -1,79 +1,41 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 
-const fonts = [
-    'font-display',        // Geist Pixel (base)
-    'font-pixel-grid',     // Geist Pixel Grid
-    'font-pixel-line',     // Geist Pixel Line
-    'font-pixel-circle',   // Geist Pixel Circle
-    'font-pixel-triangle', // Geist Pixel Triangle
-];
+const fonts = ['font-display', 'font-pixel-grid', 'font-pixel-line', 'font-pixel-circle', 'font-pixel-triangle'];
+const SETTLE_MS = 2600; // glitch on arrival, then rest on the readable pixel face
+const reduced = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-export default function DisruptiveText({ children, className = "" }) {
-    const characters = Array.from(children);
+export default function DisruptiveText({ children }) {
+    const chars = Array.from(children);
+    const [charFonts, setCharFonts] = useState(() => chars.map(() => 'font-display'));
 
-    // State to hold current font for each character
-    const [charFonts, setCharFonts] = useState(() =>
-        characters.map(() => fonts[Math.floor(Math.random() * fonts.length)])
-    );
-
-    // Function to randomize a single character's font
-    const randomizeChar = useCallback((index) => {
-        setCharFonts(prev => {
-            const newFonts = [...prev];
-            newFonts[index] = fonts[Math.floor(Math.random() * fonts.length)];
-            return newFonts;
-        });
-    }, []);
-
-    // Set up staggered intervals for each character
     useEffect(() => {
-        const intervals = characters.map((_, index) => {
-            // Each letter gets a random interval between 150ms and 600ms
-            const randomInterval = 150 + Math.random() * 450;
-            // Add initial delay based on position for staggered start
-            const initialDelay = index * 50;
-
-            const timeoutId = setTimeout(() => {
-                // Start the continuous randomization
-                const intervalId = setInterval(() => {
-                    randomizeChar(index);
-                }, randomInterval);
-
-                // Store interval ID for cleanup
-                intervals[index] = intervalId;
-            }, initialDelay);
-
-            return timeoutId;
-        });
-
-        // Cleanup all intervals on unmount
-        return () => {
-            intervals.forEach(id => {
-                clearTimeout(id);
-                clearInterval(id);
+        if (reduced()) return;
+        const timers = chars.map((_, i) => setInterval(() => {
+            setCharFonts(prev => {
+                const next = [...prev];
+                next[i] = fonts[Math.floor(Math.random() * fonts.length)];
+                return next;
             });
-        };
-    }, [characters.length, randomizeChar]);
+        }, 150 + Math.random() * 300));
+        const settle = setTimeout(() => {
+            timers.forEach(clearInterval);
+            setCharFonts(chars.map(() => 'font-display'));
+        }, SETTLE_MS);
+        return () => { timers.forEach(clearInterval); clearTimeout(settle); };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [chars.length]);
 
     return (
-        <span className={className} style={{ display: 'inline-block' }}>
-            {characters.map((char, index) => (
+        <span aria-hidden="true" style={{ display: 'inline-block' }}>
+            {chars.map((char, i) => (
                 <motion.span
-                    key={index}
-                    className={charFonts[index]}
+                    key={i}
+                    className={charFonts[i]}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{
-                        duration: 0.5,
-                        delay: index * 0.05,
-                        ease: "backOut"
-                    }}
-                    style={{
-                        display: 'inline-block',
-                        whiteSpace: 'pre',
-                        transition: 'font-family 0.1s ease-out'
-                    }}
+                    transition={{ duration: 0.5, delay: i * 0.05, ease: 'backOut' }}
+                    style={{ display: 'inline-block', whiteSpace: 'pre' }}
                 >
                     {char}
                 </motion.span>
