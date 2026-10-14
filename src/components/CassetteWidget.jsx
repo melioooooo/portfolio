@@ -12,7 +12,9 @@ const POLL_MS = 6000;
 const LAST_KEY = 'cassette_last';
 const PX_W = 1423, PX_H = 882, W = 10, H = W * PX_H / PX_W, D = W * 12 / 100.4, R = 0.32;
 const LABEL = [70, 92, 1284, 540], WINDOW = [262, 262, 888, 328]; // px in the 1423x882 label art: paper, tape window
-const IDLE = ['#ff5a1f', '#ffa23a', '#ff3d7f'];
+const EDGE_NEUTRAL = new THREE.Color('#e6e6ee'), EDGE_MIX = 0.25; // edge = dominant color, softened toward a neutral (0 = pure color, 1 = neutral)
+const edgeOf = (pal) => pal[0].clone().lerp(EDGE_NEUTRAL, EDGE_MIX);
+const IDLE = ['#ff5a1f', '#ffa23a', '#ff7a3d'];
 
 function buildScene(canvas, label) {
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, premultipliedAlpha: true });
@@ -139,8 +141,8 @@ function buildScene(canvas, label) {
     };
     const sideMat = new THREE.MeshPhysicalMaterial({
         color: new THREE.Color('#f04bb4'), roughness: 0.1, metalness: 0, transparent: true, opacity: 0.9,
-        clearcoat: 1, clearcoatRoughness: 0.04, iridescence: 0.9, iridescenceIOR: 1.4, iridescenceThicknessRange: [250, 700],
-        sheen: 0.4, sheenColor: new THREE.Color('#b78cff'), envMapIntensity: 1.3,
+        clearcoat: 1, clearcoatRoughness: 0.04, iridescence: 0.25, iridescenceIOR: 1.4, iridescenceThicknessRange: [250, 500],
+        sheen: 0.2, sheenColor: new THREE.Color('#b78cff'), envMapIntensity: 1.3,
     });
     const pivot = new THREE.Group(); pivot.add(new THREE.Mesh(geo, [faceMat, sideMat])); scene.add(pivot);
 
@@ -272,7 +274,7 @@ export default function CassetteWidget() {
         try { S = buildScene(canvas, '/assets/images/cassette-label.webp'); } catch { return; }
         const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
         const ro = new ResizeObserver(S.resize); ro.observe(canvas); S.resize();
-        const target = IDLE.map(c => new THREE.Color(c)), side = new THREE.Color('#f04bb4');
+        const target = IDLE.map(c => new THREE.Color(c));
         const clock = new THREE.Clock();
         let raf, rotY = 0, reelSpeed = 0;
 
@@ -281,7 +283,7 @@ export default function CassetteWidget() {
             const dt = Math.min(clock.getDelta(), 0.05), t = clock.elapsedTime;
             if (!L.visible) return;
             const { U } = S;
-            if (L.labelDirty) { L.labelDirty = false; S.setLabel(L.label && { ...L.label, color: L.palette?.[0] }); }
+            if (L.labelDirty) { L.labelDirty = false; S.setLabel(L.label && { ...L.label, color: L.palette?.[0] }); S.sideMat.color.copy(edgeOf(L.palette || target)); }
             U.uTime.value = t;
             rotY += dt * (Math.PI * 2 / 14) * (reduce ? 0.3 : 1);
             const tiltX = Math.sin(t * 0.55) * 0.22;
@@ -301,7 +303,7 @@ export default function CassetteWidget() {
             const pal = L.palette || target;
             const k = Math.min(1, dt * 1.5);
             U.uC1.value.lerp(pal[0], k); U.uC2.value.lerp(pal[1] || pal[0], k); U.uC3.value.lerp(pal[2] || pal[0], k);
-            S.sideMat.color.lerp(L.palette ? pal[0] : side, k);
+            S.sideMat.color.lerp(edgeOf(pal), k);
             S.sideMat.sheenColor.lerp(pal[1] || pal[0], k);
             S.rim.color.lerp(pal[2] || pal[0], k);
             S.renderer.render(S.scene, S.camera);
