@@ -1,0 +1,260 @@
+import { useEffect, useRef, useState } from 'react';
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { useLanguage } from '../context/LanguageContext';
+import { profile } from '../data/cv';
+
+// Floating 3D cassette. Idle: slow turn, reels stopped. When Elio is on Spotify (via Lanyard,
+// which reads his Discord presence): reels spin, palette follows the cover, rewinds on track change.
+const DISCORD_ID = profile.discord.split('/').pop();
+const LANYARD = `https://api.lanyard.rest/v1/users/${DISCORD_ID}`;
+const POLL_MS = 6000;
+const PX_W = 1423, PX_H = 882, W = 10, H = W * PX_H / PX_W, D = W * 12 / 100.4, R = 0.32;
+const IDLE = ['#ff5a1f', '#ffa23a', '#ff3d7f'];
+
+function buildScene(canvas, label) {
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, premultipliedAlpha: true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.setClearColor(0x000000, 0);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.NeutralToneMapping;
+    renderer.toneMappingExposure = 1.05;
+
+    const scene = new THREE.Scene();
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.03).texture;
+    const camera = new THREE.PerspectiveCamera(22, 1, 0.1, 100);
+    const key = new THREE.DirectionalLight(0xffffff, 1.6); key.position.set(4, 6, 8); scene.add(key);
+    const rim = new THREE.DirectionalLight(0xc9b8ff, 1.2); rim.position.set(-6, 2, -5); scene.add(rim);
+
+    const shape = new THREE.Shape(), x0 = -W / 2, y0 = -H / 2;
+    shape.moveTo(x0 + R, y0);
+    shape.lineTo(x0 + W - R, y0); shape.quadraticCurveTo(x0 + W, y0, x0 + W, y0 + R);
+    shape.lineTo(x0 + W, y0 + H - R); shape.quadraticCurveTo(x0 + W, y0 + H, x0 + W - R, y0 + H);
+    shape.lineTo(x0 + R, y0 + H); shape.quadraticCurveTo(x0, y0 + H, x0, y0 + H - R);
+    shape.lineTo(x0, y0 + R); shape.quadraticCurveTo(x0, y0, x0 + R, y0);
+    const BEV = 0.07;
+    const geo = new THREE.ExtrudeGeometry(shape, {
+        depth: D - 2 * BEV, bevelEnabled: true, bevelThickness: BEV, bevelSize: BEV, bevelOffset: -BEV, bevelSegments: 4, curveSegments: 24,
+    });
+    geo.translate(0, 0, -(D - 2 * BEV) / 2);
+    const p = geo.attributes.position, uv = geo.attributes.uv;
+    for (let i = 0; i < p.count; i++) {
+        let u = p.getX(i) / W + 0.5;
+        if (p.getZ(i) < 0) u = 1 - u; // back face shows the label the right way round
+        uv.setXY(i, u, p.getY(i) / H + 0.5);
+    }
+    uv.needsUpdate = true;
+
+    const tex = new THREE.TextureLoader().load(label);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+
+    const U = {
+        uTime: { value: 0 }, uTilt: { value: 0 }, uAngL: { value: 0 }, uAngR: { value: 0 }, uAngS: { value: 0 },
+        uC1: { value: new THREE.Color(IDLE[0]) }, uC2: { value: new THREE.Color(IDLE[1]) }, uC3: { value: new THREE.Color(IDLE[2]) },
+        uHolo: { value: 1 },
+    };
+    const faceMat = new THREE.MeshPhysicalMaterial({
+        map: tex, alphaTest: 0.5, alphaToCoverage: true, side: THREE.FrontSide, roughness: 0.3, metalness: 0,
+        clearcoat: 1, clearcoatRoughness: 0.05, iridescence: 0.55, iridescenceIOR: 1.35, iridescenceThicknessRange: [180, 620],
+        envMapIntensity: 1.0, specularIntensity: 0.8,
+    });
+    faceMat.onBeforeCompile = (s) => {
+        Object.assign(s.uniforms, U);
+        s.fragmentShader = `
+    uniform float uTime, uTilt, uAngL, uAngR, uAngS, uHolo;
+    uniform vec3 uC1, uC2, uC3;
+    vec2 rotAbout(vec2 p, vec2 c, float a){ vec2 d = p - c; float cs = cos(a), sn = sin(a); return c + mat2(cs, -sn, sn, cs) * d; }
+    vec2 reelUV(vec2 uv){
+      vec2 px = vec2(uv.x * ${PX_W}.0, (1.0 - uv.y) * ${PX_H}.0);
+      vec2 cL = vec2(431.4, 414.9), cR = vec2(985.7, 417.3);
+      vec2 sL = vec2(151.0, 779.0), sR = vec2(1276.0, 776.0);
+      if (distance(px, cL) < 128.0) px = rotAbout(px, cL, uAngL);
+      else if (distance(px, cR) < 128.0) px = rotAbout(px, cR, uAngR);
+      else if (distance(px, sL) < 48.0) px = rotAbout(px, sL, uAngS);
+      else if (distance(px, sR) < 48.0) px = rotAbout(px, sR, -uAngS);
+      return vec2(px.x / ${PX_W}.0, 1.0 - px.y / ${PX_H}.0);
+    }
+    vec3 holoRamp(float t){
+      t = fract(t) * 3.0;
+      vec3 a = t < 1.0 ? uC1 : (t < 2.0 ? uC2 : uC3);
+      vec3 b = t < 1.0 ? uC2 : (t < 2.0 ? uC3 : uC1);
+      return mix(a, b, smoothstep(0.0, 1.0, fract(t)));
+    }
+  ` + s.fragmentShader
+            .replace('#include <map_fragment>', `
+      vec2 ruv = reelUV(vMapUv);
+      vec4 sampledDiffuseColor = texture2D(map, ruv);
+      diffuseColor *= sampledDiffuseColor;
+    `)
+            .replace('#include <opaque_fragment>', `
+      {
+        vec3 V = normalize(vViewPosition);
+        float ndv = clamp(abs(dot(normal, V)), 0.0, 1.0);
+        float fres = pow(1.0 - ndv, 2.2);
+        vec2 hv = vMapUv;
+        float t = hv.x * 0.55 + hv.y * 0.35 + (1.0 - ndv) * 1.6 + uTilt * 0.9 + uTime * 0.02;
+        vec3 holo = holoRamp(t);
+        float sweep = hv.x * 0.85 + hv.y * 0.45 - (0.65 + uTilt * 1.4);
+        float band = exp(-sweep * sweep * 22.0);
+        float lum = dot(sampledDiffuseColor.rgb, vec3(0.299, 0.587, 0.114));
+        float mask = smoothstep(0.12, 0.55, lum);
+        float k = uHolo * mask * (0.24 + 0.85 * band + 0.6 * fres);
+        outgoingLight = 1.0 - (1.0 - outgoingLight) * (1.0 - holo * k);
+      }
+      #include <opaque_fragment>
+    `);
+    };
+    const sideMat = new THREE.MeshPhysicalMaterial({
+        color: new THREE.Color('#f04bb4'), roughness: 0.1, metalness: 0, transparent: true, opacity: 0.9,
+        clearcoat: 1, clearcoatRoughness: 0.04, iridescence: 0.9, iridescenceIOR: 1.4, iridescenceThicknessRange: [250, 700],
+        sheen: 0.4, sheenColor: new THREE.Color('#b78cff'), envMapIntensity: 1.3,
+    });
+    const pivot = new THREE.Group(); pivot.add(new THREE.Mesh(geo, [faceMat, sideMat])); scene.add(pivot);
+
+    const resize = () => {
+        const w = canvas.clientWidth || 1, h = canvas.clientHeight || 1;
+        renderer.setSize(w, h, false);
+        camera.aspect = w / h;
+        const vf = THREE.MathUtils.degToRad(camera.fov), t = Math.tan(vf / 2);
+        const dist = Math.max((H * 1.55 / 2) / t, (Math.hypot(W, D) * 1.22 / 2) / (t * camera.aspect));
+        camera.position.set(0, 0, dist + D); camera.lookAt(0, 0, 0); camera.updateProjectionMatrix();
+    };
+
+    const dispose = () => {
+        geo.dispose(); faceMat.dispose(); sideMat.dispose(); tex.dispose(); pmrem.dispose(); scene.environment?.dispose();
+        renderer.dispose();
+    };
+    return { renderer, scene, camera, pivot, U, sideMat, resize, dispose };
+}
+
+// Three vivid hues from the cover art; falls back to hues derived from the title if the image is blocked.
+function paletteFromImage(url) {
+    return new Promise((res) => {
+        const img = new Image(); img.crossOrigin = 'anonymous';
+        img.onload = () => {
+            try {
+                const c = document.createElement('canvas'); c.width = c.height = 40;
+                const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(img, 0, 0, 40, 40);
+                const d = g.getImageData(0, 0, 40, 40).data, hsl = {}, col = new THREE.Color();
+                const bins = Array.from({ length: 18 }, () => ({ w: 0, h: 0, s: 0, l: 0 }));
+                for (let i = 0; i < d.length; i += 4) {
+                    col.setRGB(d[i] / 255, d[i + 1] / 255, d[i + 2] / 255, THREE.SRGBColorSpace); col.getHSL(hsl, THREE.SRGBColorSpace);
+                    const wgt = hsl.s * (1 - Math.abs(hsl.l - 0.5) * 1.6);
+                    if (wgt <= 0.05) continue;
+                    const b = bins[Math.floor(hsl.h * 18) % 18]; b.w += wgt; b.h += hsl.h * wgt; b.s += hsl.s * wgt; b.l += hsl.l * wgt;
+                }
+                const top = bins.filter(b => b.w > 0).sort((a, b) => b.w - a.w).slice(0, 3)
+                    .map(b => new THREE.Color().setHSL(b.h / b.w, Math.min(1, b.s / b.w * 1.25 + 0.15), THREE.MathUtils.clamp(b.l / b.w, 0.5, 0.68), THREE.SRGBColorSpace));
+                res(top.length ? top : null);
+            } catch { res(null); }
+        };
+        img.onerror = () => res(null);
+        img.src = url;
+    });
+}
+function hashPalette(str) {
+    let h = 0; for (const ch of str) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+    const base = (h % 360) / 360;
+    return [0, 0.12, 0.24].map(o => new THREE.Color().setHSL((base + o) % 1, 0.9, 0.62, THREE.SRGBColorSpace));
+}
+
+export default function CassetteWidget() {
+    const { t } = useLanguage();
+    const canvasRef = useRef(null);
+    const rootRef = useRef(null);
+    const [track, setTrack] = useState(null);
+    const [away, setAway] = useState(false); // hidden while the footer (which has its own identity) is on screen
+    const live = useRef({ playing: false, progress: 0.5, rewindUntil: 0, palette: null, visible: true });
+
+    useEffect(() => { live.current.visible = !away; }, [away]);
+
+    useEffect(() => {
+        const footer = document.querySelector('.footer__scene');
+        if (!footer) return;
+        const io = new IntersectionObserver(([e]) => setAway(e.isIntersecting), { threshold: 0.15 });
+        io.observe(footer);
+        return () => io.disconnect();
+    }, []);
+
+    // Lanyard polling: Discord presence -> `spotify` object (null when not listening)
+    useEffect(() => {
+        const L = live.current;
+        let lastId = null, stop = false, timer;
+        const poll = async () => {
+            if (document.hidden) return;
+            try {
+                const r = await fetch(LANYARD);
+                const sp = (await r.json())?.data?.spotify;
+                if (stop) return;
+                if (!sp) { L.playing = false; lastId = null; setTrack(null); return; }
+                L.playing = true;
+                const { start, end } = sp.timestamps;
+                L.progress = Math.min(1, Math.max(0, (Date.now() - start) / (end - start)));
+                if (sp.track_id !== lastId) {
+                    if (lastId) L.rewindUntil = performance.now() + 1100;
+                    lastId = sp.track_id;
+                    setTrack({ id: sp.track_id, title: sp.song, artist: sp.artist.replaceAll(';', ','), url: `https://open.spotify.com/track/${sp.track_id}` });
+                    L.palette = (await paletteFromImage(sp.album_art_url)) || hashPalette(sp.song + sp.artist);
+                }
+            } catch { /* offline or Lanyard down: keep the last state */ }
+        };
+        poll(); timer = setInterval(poll, POLL_MS);
+        return () => { stop = true; clearInterval(timer); };
+    }, []);
+
+    useEffect(() => {
+        const canvas = canvasRef.current, L = live.current;
+        // Decorative widget: without WebGL it simply stays out, it must never take the page down.
+        let S;
+        try { S = buildScene(canvas, '/assets/images/cassette-label.webp'); } catch { return; }
+        const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const ro = new ResizeObserver(S.resize); ro.observe(canvas); S.resize();
+        const target = IDLE.map(c => new THREE.Color(c)), side = new THREE.Color('#f04bb4');
+        const clock = new THREE.Clock();
+        let raf, rotY = 0, reelSpeed = 0;
+
+        const frame = () => {
+            raf = requestAnimationFrame(frame);
+            const dt = Math.min(clock.getDelta(), 0.05), t = clock.elapsedTime;
+            if (!L.visible) return;
+            const { U } = S;
+            U.uTime.value = t;
+            rotY += dt * (Math.PI * 2 / 14) * (reduce ? 0.3 : 1);
+            const tiltX = Math.sin(t * 0.55) * 0.22;
+            S.pivot.rotation.set(tiltX, rotY, Math.sin(t * 0.37) * 0.04);
+            S.pivot.position.y = Math.sin(t * 0.8) * 0.08;
+            U.uTilt.value = tiltX * 1.6 + Math.sin(rotY) * 0.35;
+
+            // reel angular speed = tape speed / reel radius, like a real cassette
+            const rewinding = performance.now() < L.rewindUntil;
+            const want = rewinding ? -6 : (L.playing && !reduce ? 1 : 0);
+            reelSpeed += (want - reelSpeed) * Math.min(1, dt * (rewinding ? 6 : 2.5));
+            const p = L.progress, r0 = 0.45, r1 = 1.0;
+            const rL = Math.sqrt(r0 * r0 + (1 - p) * (r1 * r1 - r0 * r0)), rR = Math.sqrt(r0 * r0 + p * (r1 * r1 - r0 * r0));
+            const base = 1.6 * reelSpeed * dt;
+            U.uAngL.value += base * 0.72 / rL; U.uAngR.value += base * 0.72 / rR; U.uAngS.value += base * 3.2;
+
+            const pal = L.palette || target;
+            const k = Math.min(1, dt * 1.5);
+            U.uC1.value.lerp(pal[0], k); U.uC2.value.lerp(pal[1] || pal[0], k); U.uC3.value.lerp(pal[2] || pal[0], k);
+            S.sideMat.color.lerp(L.palette ? side.clone().lerp(pal[0], 0.45) : side, k);
+            S.renderer.render(S.scene, S.camera);
+        };
+        frame();
+        return () => { cancelAnimationFrame(raf); ro.disconnect(); S.dispose(); };
+    }, []);
+
+    return (
+        <aside ref={rootRef} className={`cassette no-print${away ? ' is-away' : ''}`} aria-label={t.cassette.label}>
+            {track && (
+                <a className="cassette__chip" href={track.url} target="_blank" rel="noopener noreferrer">
+                    <i className="status-dot" aria-hidden="true" />
+                    <span><b>{t.cassette.now}</b> {track.title} — {track.artist}</span>
+                </a>
+            )}
+            <canvas ref={canvasRef} className="cassette__canvas" aria-hidden="true" />
+        </aside>
+    );
+}

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 
@@ -10,6 +10,9 @@ import Experience from './Experience';
 import Contact from './Contact';
 import Navbar from './Navbar';
 import Footer from './Footer';
+
+// three.js is heavy: load it after the page is interactive
+const CassetteWidget = lazy(() => import('./CassetteWidget'));
 
 export default function PortfolioHome() {
     const { state } = useLocation();
@@ -33,6 +36,7 @@ export default function PortfolioHome() {
                 <Contact />
             </main>
             <Footer />
+            <Suspense fallback={null}><CassetteWidget /></Suspense>
         </motion.div>
     );
 }
