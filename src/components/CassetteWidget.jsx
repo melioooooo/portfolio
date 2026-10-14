@@ -46,9 +46,42 @@ function buildScene(canvas, label) {
     }
     uv.needsUpdate = true;
 
-    const tex = new THREE.TextureLoader().load(label);
+    // The label is a canvas: original artwork, plus the current cover and title painted on top.
+    const cv = document.createElement('canvas'); cv.width = PX_W; cv.height = PX_H;
+    const g = cv.getContext('2d');
+    const tex = new THREE.CanvasTexture(cv);
     tex.colorSpace = THREE.SRGBColorSpace;
     tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    const base = new Image();
+    let info = null;
+    const fit = (text, max, px, weight) => { // shrink to fit, then ellipsize
+        g.font = `${weight} ${px}px "Geist Pixel", monospace`;
+        while (g.measureText(text).width > max && px > 34) g.font = `${weight} ${px -= 4}px "Geist Pixel", monospace`;
+        while (g.measureText(text).width > max && text.length > 3) text = text.slice(0, -2).trimEnd() + '…';
+        return text;
+    };
+    const paint = (next = info) => {
+        info = next;
+        g.globalCompositeOperation = 'source-over';
+        g.clearRect(0, 0, PX_W, PX_H); g.drawImage(base, 0, 0, PX_W, PX_H);
+        if (info) {
+            g.globalCompositeOperation = 'source-atop'; // never paint outside the cassette shape
+            const c = info.color ? info.color.clone().multiplyScalar(0.45) : new THREE.Color('#2a1020');
+            g.fillStyle = `#${c.getHexString(THREE.SRGBColorSpace)}`;
+            g.beginPath(); g.roundRect(150, 98, 795, 148, 40); g.fill();
+            g.fillStyle = '#fff'; g.textBaseline = 'alphabetic';
+            g.fillText(fit(info.title, 730, 84, 400), 185, 178);
+            g.globalAlpha = 0.75; g.fillText(fit(info.artist, 730, 44, 400), 185, 226); g.globalAlpha = 1;
+            if (info.img) {
+                g.save(); g.beginPath(); g.roundRect(1128, 100, 212, 212, 24); g.clip();
+                g.drawImage(info.img, 1128, 100, 212, 212); g.restore();
+                g.lineWidth = 6; g.strokeStyle = '#fff'; g.beginPath(); g.roundRect(1128, 100, 212, 212, 24); g.stroke();
+            }
+        }
+        tex.needsUpdate = true;
+    };
+    base.onload = () => paint();
+    base.src = label;
 
     const U = {
         uTime: { value: 0 }, uTilt: { value: 0 }, uAngL: { value: 0 }, uAngR: { value: 0 }, uAngS: { value: 0 },
@@ -126,33 +159,33 @@ function buildScene(canvas, label) {
         geo.dispose(); faceMat.dispose(); sideMat.dispose(); tex.dispose(); pmrem.dispose(); scene.environment?.dispose();
         renderer.dispose();
     };
-    return { renderer, scene, camera, pivot, U, sideMat, resize, dispose };
+    return { renderer, scene, camera, pivot, U, sideMat, resize, dispose, setLabel: paint };
 }
 
 // Three vivid hues from the cover art; falls back to hues derived from the title if the image is blocked.
-function paletteFromImage(url) {
+function loadCover(url) {
     return new Promise((res) => {
-        const img = new Image(); img.crossOrigin = 'anonymous';
-        img.onload = () => {
-            try {
-                const c = document.createElement('canvas'); c.width = c.height = 40;
-                const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(img, 0, 0, 40, 40);
-                const d = g.getImageData(0, 0, 40, 40).data, hsl = {}, col = new THREE.Color();
-                const bins = Array.from({ length: 18 }, () => ({ w: 0, h: 0, s: 0, l: 0 }));
-                for (let i = 0; i < d.length; i += 4) {
-                    col.setRGB(d[i] / 255, d[i + 1] / 255, d[i + 2] / 255, THREE.SRGBColorSpace); col.getHSL(hsl, THREE.SRGBColorSpace);
-                    const wgt = hsl.s * (1 - Math.abs(hsl.l - 0.5) * 1.6);
-                    if (wgt <= 0.05) continue;
-                    const b = bins[Math.floor(hsl.h * 18) % 18]; b.w += wgt; b.h += hsl.h * wgt; b.s += hsl.s * wgt; b.l += hsl.l * wgt;
-                }
-                const top = bins.filter(b => b.w > 0).sort((a, b) => b.w - a.w).slice(0, 3)
-                    .map(b => new THREE.Color().setHSL(b.h / b.w, Math.min(1, b.s / b.w * 1.25 + 0.15), THREE.MathUtils.clamp(b.l / b.w, 0.5, 0.68), THREE.SRGBColorSpace));
-                res(top.length ? top : null);
-            } catch { res(null); }
-        };
-        img.onerror = () => res(null);
+        const img = new Image(); img.crossOrigin = 'anonymous'; // refused CORS = no image at all, so the canvas is never tainted
+        img.onload = () => res(img); img.onerror = () => res(null);
         img.src = url;
     });
+}
+function paletteOf(img) {
+    try {
+        const c = document.createElement('canvas'); c.width = c.height = 40;
+        const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(img, 0, 0, 40, 40);
+        const d = g.getImageData(0, 0, 40, 40).data, hsl = {}, col = new THREE.Color();
+        const bins = Array.from({ length: 18 }, () => ({ w: 0, h: 0, s: 0, l: 0 }));
+        for (let i = 0; i < d.length; i += 4) {
+            col.setRGB(d[i] / 255, d[i + 1] / 255, d[i + 2] / 255, THREE.SRGBColorSpace); col.getHSL(hsl, THREE.SRGBColorSpace);
+            const wgt = hsl.s * (1 - Math.abs(hsl.l - 0.5) * 1.6);
+            if (wgt <= 0.05) continue;
+            const b = bins[Math.floor(hsl.h * 18) % 18]; b.w += wgt; b.h += hsl.h * wgt; b.s += hsl.s * wgt; b.l += hsl.l * wgt;
+        }
+        const top = bins.filter(b => b.w > 0).sort((a, b) => b.w - a.w).slice(0, 3)
+            .map(b => new THREE.Color().setHSL(b.h / b.w, Math.min(1, b.s / b.w * 1.25 + 0.15), THREE.MathUtils.clamp(b.l / b.w, 0.5, 0.68), THREE.SRGBColorSpace));
+        return top.length ? top : null;
+    } catch { return null; }
 }
 function hashPalette(str) {
     let h = 0; for (const ch of str) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
@@ -166,7 +199,7 @@ export default function CassetteWidget() {
     const rootRef = useRef(null);
     const [track, setTrack] = useState(null);
     const [away, setAway] = useState(false); // hidden while the footer (which has its own identity) is on screen
-    const live = useRef({ playing: false, progress: 0.5, rewindUntil: 0, palette: null, visible: true });
+    const live = useRef({ playing: false, progress: 0.5, rewindUntil: 0, palette: null, label: null, labelDirty: false, visible: true });
 
     useEffect(() => { live.current.visible = !away; }, [away]);
 
@@ -188,7 +221,7 @@ export default function CassetteWidget() {
                 const r = await fetch(LANYARD);
                 const sp = (await r.json())?.data?.spotify;
                 if (stop) return;
-                if (!sp) { L.playing = false; lastId = null; setTrack(null); return; }
+                if (!sp) { if (L.playing) { L.label = null; L.palette = null; L.labelDirty = true; } L.playing = false; lastId = null; setTrack(null); return; }
                 L.playing = true;
                 const { start, end } = sp.timestamps;
                 L.progress = Math.min(1, Math.max(0, (Date.now() - start) / (end - start)));
@@ -196,7 +229,10 @@ export default function CassetteWidget() {
                     if (lastId) L.rewindUntil = performance.now() + 1100;
                     lastId = sp.track_id;
                     setTrack({ id: sp.track_id, title: sp.song, artist: sp.artist.replaceAll(';', ','), url: `https://open.spotify.com/track/${sp.track_id}` });
-                    L.palette = (await paletteFromImage(sp.album_art_url)) || hashPalette(sp.song + sp.artist);
+                    const img = await loadCover(sp.album_art_url);
+                    L.palette = (img && paletteOf(img)) || hashPalette(sp.song + sp.artist);
+                    L.label = { img, title: sp.song, artist: sp.artist.replaceAll(';', ',') };
+                    L.labelDirty = true;
                 }
             } catch { /* offline or Lanyard down: keep the last state */ }
         };
@@ -220,6 +256,7 @@ export default function CassetteWidget() {
             const dt = Math.min(clock.getDelta(), 0.05), t = clock.elapsedTime;
             if (!L.visible) return;
             const { U } = S;
+            if (L.labelDirty) { L.labelDirty = false; S.setLabel(L.label && { ...L.label, color: L.palette?.[0] }); }
             U.uTime.value = t;
             rotY += dt * (Math.PI * 2 / 14) * (reduce ? 0.3 : 1);
             const tiltX = Math.sin(t * 0.55) * 0.22;

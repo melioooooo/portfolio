@@ -306,13 +306,13 @@ button { font: inherit; color: inherit; cursor: pointer; }
 /* ===== CASSETTE (floating now-playing) ===== */
 .cassette { position: fixed; right: 1rem; bottom: 1rem; z-index: 50; display: flex; flex-direction: column; align-items: flex-end; gap: .4rem; pointer-events: none; transition: opacity .5s var(--ease), transform .5s var(--ease); }
 .cassette.is-away { opacity: 0; transform: translateY(12px); }
-.cassette__canvas { width: clamp(130px, 15vw, 210px); aspect-ratio: 1.55; display: block; }
+.cassette__canvas { width: clamp(150px, 17vw, 240px); aspect-ratio: 1.55; display: block; }
 .cassette__chip { pointer-events: auto; display: inline-flex; align-items: center; gap: .55rem; max-width: min(78vw, 280px); padding: .5rem .9rem; background: var(--surface); border: 1px solid var(--line); font-family: var(--font-mono); font-size: .72rem; color: var(--text-dim); transition: border-color .25s, color .25s; }
 .cassette__chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cassette__chip b { color: var(--text-main); font-weight: 500; text-transform: uppercase; letter-spacing: .08em; margin-right: .3rem; }
 .cassette__chip:hover { border-color: var(--hot); color: var(--text-main); }
 .cassette__chip .status-dot { flex: none; margin: 0; }
-@media (max-width: 760px) { .cassette__canvas { width: 96px; } }
+@media (max-width: 760px) { .cassette__canvas { width: 110px; } }
 
 /* ===== CURSOR / TAPE / LISTS ===== */
 .cursor { display: none; }
