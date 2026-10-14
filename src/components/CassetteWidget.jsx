@@ -9,6 +9,7 @@ import { profile } from '../data/cv';
 const DISCORD_ID = profile.discord.split('/').pop();
 const LANYARD = `https://api.lanyard.rest/v1/users/${DISCORD_ID}`;
 const POLL_MS = 6000;
+const LAST_KEY = 'cassette_last';
 const PX_W = 1423, PX_H = 882, W = 10, H = W * PX_H / PX_W, D = W * 12 / 100.4, R = 0.32;
 const LABEL = [70, 92, 1284, 540], WINDOW = [262, 262, 888, 328]; // px in the 1423x882 label art: paper, tape window
 const IDLE = ['#ff5a1f', '#ffa23a', '#ff3d7f'];
@@ -56,25 +57,25 @@ function buildScene(canvas, label) {
     const tmp = document.createElement('canvas'); tmp.width = PX_W; tmp.height = PX_H;
     const base = new Image();
     let info = null;
+    let fallback = null; // site-themed cover used until a real one is known
     const paint = (next = info) => {
         info = next;
-        g.globalCompositeOperation = 'source-over';
-        g.clearRect(0, 0, PX_W, PX_H); g.drawImage(base, 0, 0, PX_W, PX_H);
-        if (info?.img) {
-            // Whole cassette = the cover. Shell: original plastic recolored to the cover's hue (alpha kept).
-            // Label paper: the cover itself, cover-fit, leaving the tape window (reels, hubs) untouched.
-            const t = tmp.getContext('2d');
-            t.globalCompositeOperation = 'source-over'; t.clearRect(0, 0, PX_W, PX_H); t.drawImage(base, 0, 0, PX_W, PX_H);
-            if (info.color) {
-                t.globalCompositeOperation = 'color'; t.fillStyle = `#${info.color.getHexString(THREE.SRGBColorSpace)}`; t.fillRect(0, 0, PX_W, PX_H);
-                t.globalCompositeOperation = 'destination-in'; t.drawImage(base, 0, 0, PX_W, PX_H);
-            }
-            g.clearRect(0, 0, PX_W, PX_H); g.drawImage(tmp, 0, 0);
-            const [lx, ly, lw, lh] = LABEL, im = info.img, k = Math.max(lw / im.width, lh / im.height);
-            g.save(); g.beginPath(); g.roundRect(lx, ly, lw, lh, 36); g.roundRect(...WINDOW, 120); g.clip('evenodd');
-            g.drawImage(im, lx + (lw - im.width * k) / 2, ly + (lh - im.height * k) / 2, im.width * k, im.height * k);
-            g.restore();
-        }
+        const cur = info || (fallback ||= { img: defaultCover(), color: new THREE.Color(IDLE[0]) });
+        const cover = cur.img || (fallback ||= { img: defaultCover() }).img;
+        const t = tmp.getContext('2d');
+        // Shell: original plastic, recolored from a blurred copy of the cover so the whole body carries its colors.
+        t.globalCompositeOperation = 'source-over'; t.globalAlpha = 1; t.clearRect(0, 0, PX_W, PX_H); t.drawImage(base, 0, 0, PX_W, PX_H);
+        const big = Math.max(PX_W / cover.width, PX_H / cover.height) * 1.4;
+        const blurred = () => { t.filter = 'blur(60px) saturate(1.8)'; t.drawImage(cover, (PX_W - cover.width * big) / 2, (PX_H - cover.height * big) / 2, cover.width * big, cover.height * big); t.filter = 'none'; };
+        t.globalCompositeOperation = 'color'; blurred();
+        t.globalCompositeOperation = 'multiply'; t.globalAlpha = 0.5; blurred(); t.globalAlpha = 1;
+        t.globalCompositeOperation = 'destination-in'; t.drawImage(base, 0, 0, PX_W, PX_H);
+        g.globalCompositeOperation = 'source-over'; g.clearRect(0, 0, PX_W, PX_H); g.drawImage(tmp, 0, 0);
+        // Label paper: the cover itself, cover-fit, leaving the tape window (reels, hubs) untouched.
+        const [lx, ly, lw, lh] = LABEL, k = Math.max(lw / cover.width, lh / cover.height);
+        g.save(); g.beginPath(); g.roundRect(lx, ly, lw, lh, 36); g.roundRect(...WINDOW, 120); g.clip('evenodd');
+        g.drawImage(cover, lx + (lw - cover.width * k) / 2, ly + (lh - cover.height * k) / 2, cover.width * k, cover.height * k);
+        g.restore();
         tex.needsUpdate = true;
     };
     base.onload = () => paint();
@@ -156,10 +157,25 @@ function buildScene(canvas, label) {
         geo.dispose(); faceMat.dispose(); sideMat.dispose(); tex.dispose(); pmrem.dispose(); scene.environment?.dispose();
         renderer.dispose();
     };
-    return { renderer, scene, camera, pivot, U, sideMat, resize, dispose, setLabel: paint };
+    return { renderer, scene, camera, pivot, U, sideMat, rim, resize, dispose, setLabel: paint };
 }
 
 // Three vivid hues from the cover art; falls back to hues derived from the title if the image is blocked.
+// Cover used when nothing is known yet: the site's own dithered sun, so the cassette is never anyone else's art.
+function defaultCover() {
+    const N = 80, CELL = 8, c = document.createElement('canvas'); c.width = c.height = N * CELL;
+    const g = c.getContext('2d'), B4 = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+    g.fillStyle = '#0e0e0e'; g.fillRect(0, 0, c.width, c.height); g.fillStyle = IDLE[0];
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+        const r = Math.min(1, Math.hypot(x / N - 0.68, y / N - 0.38) / 0.62);
+        if (Math.pow(1 - r, 1.5) > (B4[(y & 3) * 4 + (x & 3)] + 0.5) / 16) g.fillRect(x * CELL, y * CELL, CELL, CELL);
+    }
+    // Visible paper = the band above the tape window: cover rows ~185..265 once the square is cropped to the label
+    g.font = '56px "Geist Pixel", monospace'; g.textBaseline = 'alphabetic';
+    g.fillStyle = '#0e0e0e'; g.fillRect(40, 192, 430, 76); g.fillStyle = IDLE[0];
+    g.fillText('ELIO BAUMANN', 60, 250);
+    return c;
+}
 function loadCover(url) {
     return new Promise((res) => {
         const img = new Image(); img.crossOrigin = 'anonymous'; // refused CORS = no image at all, so the canvas is never tainted
@@ -194,9 +210,12 @@ export default function CassetteWidget() {
     const { t } = useLanguage();
     const canvasRef = useRef(null);
     const rootRef = useRef(null);
-    const [track, setTrack] = useState(null);
+    const [track, setTrack] = useState(() => {
+        try { const m = JSON.parse(localStorage.getItem(LAST_KEY)); return m?.id ? { ...m, url: `https://open.spotify.com/track/${m.id}`, live: false } : null; }
+        catch { return null; } // storage blocked or corrupt: start from the site cover
+    });
     const [away, setAway] = useState(false); // hidden while the footer (which has its own identity) is on screen
-    const live = useRef({ playing: false, progress: 0.5, rewindUntil: 0, palette: null, label: null, labelDirty: false, visible: true });
+    const live = useRef({ playing: false, progress: 0.5, rewindUntil: 0, palette: null, label: null, labelDirty: false, shownId: null, visible: true });
 
     useEffect(() => { live.current.visible = !away; }, [away]);
 
@@ -208,28 +227,37 @@ export default function CassetteWidget() {
         return () => io.disconnect();
     }, []);
 
-    // Lanyard polling: Discord presence -> `spotify` object (null when not listening)
+    // What to show: the live Lanyard track, else the last one this browser saw (Lanyard has no history), else the site cover.
     useEffect(() => {
         const L = live.current;
-        let lastId = null, stop = false, timer;
+        let stop = false, timer;
+        const meta = (m) => ({ ...m, url: `https://open.spotify.com/track/${m.id}` });
+        const show = async (m) => {
+            L.shownId = m.id;
+            const img = m.art ? await loadCover(m.art) : null;
+            if (stop || L.shownId !== m.id) return; // superseded by a newer track
+            L.palette = (img && paletteOf(img)) || hashPalette(m.title + m.artist);
+            L.label = { img };
+            L.labelDirty = true;
+        };
+        try { const saved = JSON.parse(localStorage.getItem(LAST_KEY)); if (saved?.id) show(saved); } catch { /* see initial state */ }
+
         const poll = async () => {
             if (document.hidden) return;
             try {
                 const r = await fetch(LANYARD);
                 const sp = (await r.json())?.data?.spotify;
                 if (stop) return;
-                if (!sp) { if (L.playing) { L.label = null; L.palette = null; L.labelDirty = true; } L.playing = false; lastId = null; setTrack(null); return; }
+                if (!sp) { L.playing = false; setTrack(prev => (prev?.live ? { ...prev, live: false } : prev)); return; }
                 L.playing = true;
                 const { start, end } = sp.timestamps;
                 L.progress = Math.min(1, Math.max(0, (Date.now() - start) / (end - start)));
-                if (sp.track_id !== lastId) {
-                    if (lastId) L.rewindUntil = performance.now() + 1100;
-                    lastId = sp.track_id;
-                    setTrack({ id: sp.track_id, title: sp.song, artist: sp.artist.replaceAll(';', ','), url: `https://open.spotify.com/track/${sp.track_id}` });
-                    const img = await loadCover(sp.album_art_url);
-                    L.palette = (img && paletteOf(img)) || hashPalette(sp.song + sp.artist);
-                    L.label = { img, title: sp.song, artist: sp.artist.replaceAll(';', ',') };
-                    L.labelDirty = true;
+                const m = { id: sp.track_id, title: sp.song, artist: sp.artist.replaceAll(';', ','), art: sp.album_art_url };
+                setTrack(prev => (prev?.id === m.id && prev.live ? prev : { ...meta(m), live: true }));
+                if (m.id !== L.shownId) {
+                    if (L.shownId) L.rewindUntil = performance.now() + 1100;
+                    try { localStorage.setItem(LAST_KEY, JSON.stringify(m)); } catch { /* ignore */ }
+                    show(m);
                 }
             } catch { /* offline or Lanyard down: keep the last state */ }
         };
@@ -273,7 +301,9 @@ export default function CassetteWidget() {
             const pal = L.palette || target;
             const k = Math.min(1, dt * 1.5);
             U.uC1.value.lerp(pal[0], k); U.uC2.value.lerp(pal[1] || pal[0], k); U.uC3.value.lerp(pal[2] || pal[0], k);
-            S.sideMat.color.lerp(L.palette ? side.clone().lerp(pal[0], 0.85) : side, k);
+            S.sideMat.color.lerp(L.palette ? pal[0] : side, k);
+            S.sideMat.sheenColor.lerp(pal[1] || pal[0], k);
+            S.rim.color.lerp(pal[2] || pal[0], k);
             S.renderer.render(S.scene, S.camera);
         };
         frame();
@@ -285,7 +315,7 @@ export default function CassetteWidget() {
             {track && (
                 <a className="cassette__chip" href={track.url} target="_blank" rel="noopener noreferrer">
                     <i className="status-dot" aria-hidden="true" />
-                    <span><b>{t.cassette.now}</b> {track.title} — {track.artist}</span>
+                    <span><b>{track.live ? t.cassette.now : t.cassette.last}</b> {track.title} — {track.artist}</span>
                 </a>
             )}
             <canvas ref={canvasRef} className="cassette__canvas" aria-hidden="true" />

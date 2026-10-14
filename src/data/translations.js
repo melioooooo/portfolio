@@ -110,7 +110,7 @@ export const translations = {
             socials_label: "Elsewhere"
         },
         footer: { rights: "All rights reserved.", explore: "Explore", reach: "Reach me", top: "Back to top", newTab: "(opens in a new tab)" },
-        cassette: { label: "What Elio is listening to", now: "Now playing" },
+        cassette: { label: "What Elio is listening to", now: "Now playing", last: "Last played" },
         a11y: { skip: "Skip to content", language: "Switch language" }
     },
     fr: {
@@ -224,7 +224,7 @@ export const translations = {
             socials_label: "Ailleurs"
         },
         footer: { rights: "Tous droits réservés.", explore: "Explorer", reach: "Me joindre", top: "Retour en haut", newTab: "(ouvre un nouvel onglet)" },
-        cassette: { label: "Ce qu'Elio écoute", now: "En écoute" },
+        cassette: { label: "Ce qu'Elio écoute", now: "En écoute", last: "Dernière écoute" },
         a11y: { skip: "Aller au contenu", language: "Changer de langue" }
     }
 };
